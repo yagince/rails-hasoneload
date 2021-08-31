@@ -1,0 +1,45 @@
+version: "3.7"
+
+x-backend-envs: &backend-envs
+  TZ: Asia/Tokyo
+  RAILS_LOG_TO_STDOUT: 1
+x-backend-build: &backend-build
+  context: .
+  args:
+    bundle_install_options: --jobs 10
+  target: dev
+  cache_from:
+    - hasoneload_backend
+
+services:
+  postgres:
+    image: postgres:13.2-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=dev
+      - POSTGRES_DB_TEST=test
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    container_name: backend
+    build: *backend-build
+    volumes:
+      - ./:/app:cached
+    environment: *backend-envs
+    ports:
+      - 3001:3000
+    tty: true
+    command: /bin/sh -l -c 'bundle && bundle exec puma -C config/puma.rb'
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
+    driver: local
